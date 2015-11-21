@@ -10,30 +10,42 @@
 #include "jose-c/libjosec.h"
 
 /* Define prototypes of our functions in this module */
-static void register_hooks(apr_pool_t *pool);
-static int example_handler(request_rec *r);
 
-/* Define our module as an entity and assign a function for registering hooks  */
+typedef struct {
+    const char *claim_name;
+    const char *cookie_name;
+    const char *key; 
+    size_t     key_length;
+} example_config;
 
-module AP_MODULE_DECLARE_DATA   example_module =
+static example_config config;
+
+const char *example_set_key(cmd_parms *cmd, void *cfg, const char *arg)
 {
-    STANDARD20_MODULE_STUFF,
-    NULL,            // Per-directory configuration handler
-    NULL,            // Merge handler for per-directory configurations
-    NULL,            // Per-server configuration handler
-    NULL,            // Merge handler for per-server configurations
-    NULL,            // Any directives we may have for httpd
-    register_hooks   // Our hook registering function
+    config.key = arg;
+    config.key_length = strlen(arg);
+    return NULL;
+}
+
+const char *example_set_cookie_name(cmd_parms *cmd, void *cfg, const char *arg)
+{
+    config.cookie_name = arg; 
+    return NULL;
+}
+
+const char *example_set_claim_name(cmd_parms *cmd, void *cfg, const char *arg)
+{
+    config.claim_name = arg;
+    return NULL;
+}
+
+static const command_rec example_directives[] = {
+    AP_INIT_TAKE1("exampleKey", example_set_key, NULL, RSRC_CONF, "Set the HS256 key"),
+    AP_INIT_TAKE1("exampleCookieName", example_set_cookie_name, NULL, RSRC_CONF, "Cookie name"),
+    AP_INIT_TAKE1("exampleClaimName", example_set_claim_name, NULL, RSRC_CONF, "Claim name"),
+    { NULL }
 };
 
-
-/* register_hooks: Adds a hook to the httpd process */
-static void register_hooks(apr_pool_t *pool) 
-{
-    
-    /* Hook the request handler */
-    ap_hook_handler(example_handler, NULL, NULL, APR_HOOK_LAST);
-}
 
 static int example_verify_jwt(const char *jwt) {
 
@@ -47,8 +59,8 @@ static int example_verify_jwt(const char *jwt) {
 
     jose_key_t key;
     key.alg_type = HS256;
-    key.key = "secret";
-    key.k_len = 6;
+    key.key = strdup(config.key);
+    key.k_len = config.key_length;
 
     if (jose_add_key(&ctx, key)) {
         rc = 1;
@@ -69,6 +81,7 @@ OUT:
  */
 static int example_handler(request_rec *r)
 {
+
     /* First off, we need to check if this is a call for the "example" handler.
      * If it is, we accept it and do our things, it not, we simply return DECLINED,
      * and Apache will try somewhere else.
@@ -80,13 +93,13 @@ static int example_handler(request_rec *r)
 
     const char *cookies = apr_table_get(r->headers_in, "cookie");
     if (!cookies) {
-        return OK;
+        goto OUT;
     }
 
     // Get the JWT from the cookie
-    const char *jwt = cookies_lookup(cookies, "jwt");
+    char *jwt = cookies_lookup(cookies, config.cookie_name);
     if (!jwt) {
-        return OK;
+        goto OUT;
     }
 
     if (example_verify_jwt(jwt)) {
@@ -103,7 +116,7 @@ static int example_handler(request_rec *r)
         goto FREE_JSON;
     }
 
-    name = json_object_get(claims, "name");
+    name = json_object_get(claims, config.claim_name);
     if (!json_is_string(name)) {
         goto FREE_JSON;
     }
@@ -119,5 +132,31 @@ FREE_JWT:
 
     free(jwt);
 
+OUT:
+
     return OK;
 }
+
+
+/* register_hooks: Adds a hook to the httpd process */
+static void register_hooks(apr_pool_t *pool) 
+{
+    config.claim_name = "name";
+    config.cookie_name = "jwt";
+    config.key = "";
+    config.key_length = 0;
+    /* Hook the request handler */
+    ap_hook_handler(example_handler, NULL, NULL, APR_HOOK_LAST);
+}
+
+
+module AP_MODULE_DECLARE_DATA   example_module =
+{
+    STANDARD20_MODULE_STUFF,
+    NULL,               // Per-directory configuration handler
+    NULL,               // Merge handler for per-directory configurations
+    NULL,               // Per-server configuration handler
+    NULL,               // Merge handler for per-server configurations
+    example_directives, // Any directives we may have for httpd
+    register_hooks      // Our hook registering function
+};
