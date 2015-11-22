@@ -39,7 +39,8 @@ const char *example_set_claim_name(cmd_parms *cmd, void *cfg, const char *arg)
     return NULL;
 }
 
-static const command_rec example_directives[] = {
+static const command_rec example_directives[] = 
+{
     AP_INIT_TAKE1("exampleKey", example_set_key, NULL, RSRC_CONF, "Set the HS256 key"),
     AP_INIT_TAKE1("exampleCookieName", example_set_cookie_name, NULL, RSRC_CONF, "Cookie name"),
     AP_INIT_TAKE1("exampleClaimName", example_set_claim_name, NULL, RSRC_CONF, "Claim name"),
@@ -47,8 +48,8 @@ static const command_rec example_directives[] = {
 };
 
 
-static int example_verify_jwt(const char *jwt) {
-
+static int example_verify_jwt(const char *jwt) 
+{
     int rc = 0;
 
     jose_context_t ctx;
