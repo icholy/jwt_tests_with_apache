@@ -3,19 +3,22 @@
 #include <ctype.h>
 #include <stdlib.h>
 
+#include <apr_strings.h>
+#include <apr_tables.h>
+
 typedef struct {
-  const char* key;
-  size_t      key_length;
-  const char* value;
-  size_t      value_length;
+    const char* key;
+    size_t      key_length;
+    const char* value;
+    size_t      value_length;
 } cookies_pair_t;
 
-static char *cookies_pair_key(cookies_pair_t pair) {
-  return strndup(pair.key, pair.key_length);
+static const char *cookies_pair_key(cookies_pair_t pair, apr_pool_t *pool) {
+  return apr_pstrndup(pool, pair.key, pair.key_length);
 }
 
-static char *cookies_pair_value(cookies_pair_t pair) {
-  return strndup(pair.value, pair.value_length);
+static const char *cookies_pair_value(cookies_pair_t pair, apr_pool_t *pool) {
+  return apr_pstrndup(pool, pair.value, pair.value_length);
 }
 
 static void cookies_pair_trim_whitespace(cookies_pair_t pair) {
@@ -35,9 +38,9 @@ static void cookies_pair_trim_whitespace(cookies_pair_t pair) {
     }
 }
 
-typedef int (*cookie_handler_t)(const cookies_pair_t pair, void *userdata);
+typedef int (*cookie_handler_t)(const cookies_pair_t pair, void *userdata, apr_pool_t *pool);
 
-int cookies_parse(const char* text, cookie_handler_t handler, void *userdata) {
+int cookies_parse(const char* text, cookie_handler_t handler, void *userdata, apr_pool_t *pool) {
 
     const char *text_pos = text;
     const char *text_end = text + strlen(text);
@@ -69,7 +72,7 @@ int cookies_parse(const char* text, cookie_handler_t handler, void *userdata) {
         cookies_pair_trim_whitespace(pair);
 
         // invoke callback
-        int res = handler(pair, userdata);
+        int res = handler(pair, userdata, pool);
         if (res) {
             return res;
         }
@@ -83,13 +86,13 @@ int cookies_parse(const char* text, cookie_handler_t handler, void *userdata) {
 
 typedef struct {
     const char *key;
-    char *value;
+    const char *value;
 } cookies_lookup_t;
 
-static int cookies_handle_lookup(const cookies_pair_t pair, void *data) {
+static int cookies_handle_lookup(const cookies_pair_t pair, void *data, apr_pool_t *pool) {
     cookies_lookup_t *lookup = (cookies_lookup_t*)data;
     if (strncasecmp(lookup->key, pair.key, pair.key_length) == 0) {
-        lookup->value = cookies_pair_value(pair);
+        lookup->value = cookies_pair_value(pair, pool);
         return 1;
     }
     return 0;
@@ -100,10 +103,21 @@ static void cookies_init_lookup(cookies_lookup_t *lookup, const char* key) {
     lookup->value = NULL;
 }
 
-char *cookies_lookup(const char* text, const char *key) {
+const char *cookies_lookup(const char* text, const char *key, apr_pool_t *pool) {
     cookies_lookup_t lookup;
-
     cookies_init_lookup(&lookup, key);
-    cookies_parse(text, cookies_handle_lookup, &lookup);
+    cookies_parse(text, cookies_handle_lookup, &lookup, pool);
     return lookup.value;
+}
+
+static int cookies_handle_load(cookies_pair_t pair, void *data, apr_pool_t *pool) {
+    apr_table_t *table = (apr_table_t*)data;
+    apr_table_add(table,
+        cookies_pair_key(pair, pool),
+        cookies_pair_value(pair, pool));
+    return 0;
+}
+
+int cookies_load(const char *text, apr_table_t *table, apr_pool_t *pool) {
+    return cookies_parse(text, cookies_handle_load, table, pool);
 }

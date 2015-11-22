@@ -9,13 +9,20 @@
 #include <libjosec.h>
 #include "cookies.h"
 
+#define bool int
+#define true 1
+#define false 0
+
 /* Define prototypes of our functions in this module */
 
 typedef struct {
     const char *claim_name;
     const char *cookie_name;
     const char *key; 
-    size_t     key_length;
+    bool   claim_name_is_set;
+    bool   cookie_name_is_set;
+    bool   key_is_set;
+    size_t key_length;
 } example_config;
 
 static example_config config;
@@ -24,18 +31,21 @@ const char *example_set_key(cmd_parms *cmd, void *cfg, const char *arg)
 {
     config.key = arg;
     config.key_length = strlen(arg);
+    config.key_is_set = true;
     return NULL;
 }
 
 const char *example_set_cookie_name(cmd_parms *cmd, void *cfg, const char *arg)
 {
     config.cookie_name = arg; 
+    config.cookie_name_is_set = true;
     return NULL;
 }
 
 const char *example_set_claim_name(cmd_parms *cmd, void *cfg, const char *arg)
 {
     config.claim_name = arg;
+    config.claim_name_is_set = true;
     return NULL;
 }
 
@@ -76,6 +86,13 @@ OUT:
     return rc;
 }
 
+static int example_show_cookies(void *rec, const char *key, const char *value) {
+  request_rec *r = (request_rec*)rec;
+  ap_rprintf(r, "Key: %s, Value: %s, ", key, value);
+
+  // zero stops iterating
+  return 1;
+}
 
 /* The handler function for our module.
  * This is where all the fun happens!
@@ -92,13 +109,38 @@ static int example_handler(request_rec *r)
     // set the content type
     ap_set_content_type(r, "application/json");
 
-    const char *cookies = apr_table_get(r->headers_in, "cookie");
-    if (!cookies) {
+    // const char* foo = apr_pstrdup(r->pool, "this is a test");
+
+    const char *cookies_text = apr_table_get(r->headers_in, "cookie");
+    if (!cookies_text) {
         goto OUT;
     }
 
+    ap_rprintf(r, "get headers worked<br />");
+
+    apr_table_t *cookies = apr_table_make(r->pool, 0);
+    if (!cookies) {
+       goto OUT;
+    }
+
+    ap_rprintf(r, "make table worked<br />");
+
+    int res = cookies_load(cookies_text, cookies, r->pool);
+    if (res) {
+       goto OUT;
+    }
+
+    apr_table_do(example_show_cookies, r, cookies, NULL);
+
+    ap_rprintf(r, "load cookies worked<br />");
+
     // Get the JWT from the cookie
-    char *jwt = cookies_lookup(cookies, config.cookie_name);
+    /* const char *jwt = cookies_lookup(cookies, config.cookie_name, r->pool); */
+    /* if (!jwt) { */
+    /*     goto OUT; */
+    /* } */
+
+    const char *jwt = apr_table_get(cookies, "jwt");
     if (!jwt) {
         goto OUT;
     }
@@ -112,7 +154,7 @@ static int example_handler(request_rec *r)
     /* json_t *head, *claims, *name; */
     /*  */
     /* if (jwt_split(jwt, &head, &claims)) { */
-    /*     goto FREE_JWT; */
+    /*     goto OUT; */
     /* } */
     /*  */
     /* if (!json_is_object(claims)) { */
@@ -130,10 +172,6 @@ FREE_JSON:
 
     /* json_decref(head); */
     /* json_decref(claims); */
-
-FREE_JWT:
-
-    free(jwt);
 
 OUT:
 
