@@ -6,8 +6,8 @@
 #include "http_request.h"
 
 #include <jansson.h>
+#include <libjosec.h>
 #include "cookies.h"
-#include "jose-c/libjosec.h"
 
 /* Define prototypes of our functions in this module */
 
@@ -104,30 +104,32 @@ static int example_handler(request_rec *r)
     }
 
     if (example_verify_jwt(jwt)) {
-        ap_rprintf(r, "Not authenticated");
+        ap_rprintf(r, "Not Authenticated");
+    } else {
+        ap_rprintf(r, "Is Authenticated");
     }
 
-    json_t *head, *claims, *name;
-
-    if (jwt_split(jwt, &head, &claims)) {
-        goto FREE_JWT;
-    }
-
-    if (!json_is_object(claims)) {
-        goto FREE_JSON;
-    }
-
-    name = json_object_get(claims, config.claim_name);
-    if (!json_is_string(name)) {
-        goto FREE_JSON;
-    }
-
-    ap_rprintf(r, "%s is Authenticated", json_string_value(name));
+    /* json_t *head, *claims, *name; */
+    /*  */
+    /* if (jwt_split(jwt, &head, &claims)) { */
+    /*     goto FREE_JWT; */
+    /* } */
+    /*  */
+    /* if (!json_is_object(claims)) { */
+    /*     goto FREE_JSON; */
+    /* } */
+    /*  */
+    /* name = json_object_get(claims, config.claim_name); */
+    /* if (!json_is_string(name)) { */
+    /*     goto FREE_JSON; */
+    /* } */
+    /*  */
+    /* ap_rprintf(r, "%s is Authenticated", json_string_value(name)); */
 
 FREE_JSON:
 
-    json_decref(head);
-    json_decref(claims);
+    /* json_decref(head); */
+    /* json_decref(claims); */
 
 FREE_JWT:
 
