@@ -122,12 +122,44 @@ OUT:
     return rc;
 }
 
+static int auth_jwt_get_user(char **user, jwt_parts_t *jwt_parts, auth_jwt_config *config, apr_pool_t *pool)
+{
+    const char *claims_json_text = jwt_base64_decode(jwt_parts->claims, pool);
+    if (!claims_json_text) {
+      return HTTP_BAD_REQUEST;
+    }
+
+    apr_json_value_t *claims_value;
+    int ret = apr_json_decode(&claims_value, claims_json_text, strlen(claims_json_text), pool);
+    if (ret) {
+      return HTTP_BAD_REQUEST;
+    }
+
+    if (claims_value->type != APR_JSON_OBJECT) {
+      return HTTP_BAD_REQUEST;
+    }
+    apr_json_value_t *name_value = apr_hash_get(claims_value->value.object,
+                                          config->claim_name, 
+                                          strlen(config->claim_name));
+
+    if (name_value->type != APR_JSON_STRING) {
+      return HTTP_BAD_REQUEST;
+    }
+
+    apr_json_string_t name_string = name_value->value.string;
+    *user = apr_pstrndup(pool, name_string.p, name_string.len);
+    if (!*user) {
+      return HTTP_INTERNAL_SERVER_ERROR;
+    }
+
+    return 0;
+}
+
 /* The handler function for our module.
  * This is where all the fun happens!
  */
 static int auth_jwt_handler(request_rec *r)
 {
-
     const char *current_auth = ap_auth_type(r);
     if (!current_auth || strcasecmp(current_auth, "JWT")) {
       return DECLINED;
@@ -160,32 +192,9 @@ static int auth_jwt_handler(request_rec *r)
       return HTTP_BAD_REQUEST;
     }
 
-    const char *claims_json_text = jwt_base64_decode(jwt_parts->claims, r->pool);
-    if (!claims_json_text) {
-      return HTTP_BAD_REQUEST;
-    }
-
-    apr_json_value_t *claims_value;
-    int ret = apr_json_decode(&claims_value, claims_json_text, strlen(claims_json_text), r->pool);
+    int ret = auth_jwt_get_user(&r->user, jwt_parts, config, r->pool);
     if (ret) {
-      return HTTP_BAD_REQUEST;
-    }
-
-    if (claims_value->type != APR_JSON_OBJECT) {
-      return HTTP_BAD_REQUEST;
-    }
-    apr_json_value_t *name_value = apr_hash_get(claims_value->value.object,
-                                          config->claim_name, 
-                                          strlen(config->claim_name));
-
-    if (name_value->type != APR_JSON_STRING) {
-      return HTTP_BAD_REQUEST;
-    }
-
-    apr_json_string_t name_string = name_value->value.string;
-    r->user = apr_pstrndup(r->pool, name_string.p, name_string.len);
-    if (!r->user) {
-      return HTTP_INTERNAL_SERVER_ERROR;
+      return ret;
     }
 
     return OK;
