@@ -1,12 +1,26 @@
 #include <strings.h>
 #include <apr_pools.h>
 #include <apr_strings.h>
+#include <apr_json.h>
+#include <apr_base64.h>
 
 typedef struct {
     const char *header;
     const char *claims;
     const char *signature;
 } jwt_parts_t;
+
+const char *jwt_base64_decode(const char *encoded, apr_pool_t *pool)
+{
+    char *decoded = (char*)apr_palloc(pool, 
+            apr_base64_decode_len(encoded) + 1);
+    if (!decoded) {
+        return NULL;
+    }
+    int decoded_len = apr_base64_decode(decoded, encoded);
+    decoded[decoded_len] = 0x00;
+    return decoded;
+}
 
 jwt_parts_t *jwt_split(const char *jwt_text, apr_pool_t *pool)
 {

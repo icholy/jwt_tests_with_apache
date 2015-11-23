@@ -2,7 +2,7 @@
 all: build install
 
 build:
-	apxs -I/usr/local/include -I/usr/local/include/josec-0.11 -c mod_authnz_jwt.c -ljansson -ljosec 
+	apxs -I/usr/local/include -I/usr/local/include/josec-0.11 -I/home/icholy/Code/src/github.com/moriyoshi/apr-json/include -c mod_authnz_jwt.c -ljansson -ljosec -laprjson
 
 install:
 	sudo apxs -i -a mod_authnz_jwt.la
