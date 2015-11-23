@@ -24,39 +24,39 @@ typedef struct {
     bool   key_is_set;
     size_t key_length;
     
-} example_config;
+} auth_jwt_config;
 
-const char *example_set_key(cmd_parms *cmd, void *cfg, const char *arg);
-const char *example_set_cookie_name(cmd_parms *cmd, void *cfg, const char *arg);
-const char *example_set_claim_name(cmd_parms *cmd, void *cfg, const char *arg);
-static int example_verify_jwt(const char *jwt, example_config *config);
-static int example_handler(request_rec *r);
+const char *auth_jwt_set_key(cmd_parms *cmd, void *cfg, const char *arg);
+const char *auth_jwt_set_cookie_name(cmd_parms *cmd, void *cfg, const char *arg);
+const char *auth_jwt_set_claim_name(cmd_parms *cmd, void *cfg, const char *arg);
+static int auth_jwt_verify_jwt(const char *jwt, auth_jwt_config *config);
+static int auth_jwt_handler(request_rec *r);
 static void register_hooks(apr_pool_t *pool);
 static void *create_dir_conf(apr_pool_t *pool, char *context);
 
-static const command_rec example_directives[] = 
+static const command_rec auth_jwt_directives[] = 
 {
-    AP_INIT_TAKE1("exampleKey", example_set_key, NULL, ACCESS_CONF, "Set the HS256 key"),
-    AP_INIT_TAKE1("exampleCookieName", example_set_cookie_name, NULL, ACCESS_CONF, "Cookie name"),
-    AP_INIT_TAKE1("exampleClaimName", example_set_claim_name, NULL, ACCESS_CONF, "Claim name"),
+    AP_INIT_TAKE1("exampleKey", auth_jwt_set_key, NULL, ACCESS_CONF, "Set the HS256 key"),
+    AP_INIT_TAKE1("exampleCookieName", auth_jwt_set_cookie_name, NULL, ACCESS_CONF, "Cookie name"),
+    AP_INIT_TAKE1("exampleClaimName", auth_jwt_set_claim_name, NULL, ACCESS_CONF, "Claim name"),
     { NULL }
 };
 
-module AP_MODULE_DECLARE_DATA   example_module =
+module AP_MODULE_DECLARE_DATA   auth_jwt_module =
 {
     STANDARD20_MODULE_STUFF,
     create_dir_conf,    // Per-directory configuration handler
     NULL,               // Merge handler for per-directory configurations
     NULL,               // Per-server configuration handler
     NULL,               // Merge handler for per-server configurations
-    example_directives, // Any directives we may have for httpd
+    auth_jwt_directives, // Any directives we may have for httpd
     register_hooks      // Our hook registering function
 };
 
 void *create_dir_conf(apr_pool_t *pool, char *context)
 {
   context = context ? context : "(undefined context)";
-  example_config *config = apr_palloc(pool, sizeof(example_config));
+  auth_jwt_config *config = apr_palloc(pool, sizeof(auth_jwt_config));
   if (config) {
     config->claim_name = "name";
     config->claim_name_is_set = false;
@@ -69,32 +69,32 @@ void *create_dir_conf(apr_pool_t *pool, char *context)
   return config;
 }
 
-const char *example_set_key(cmd_parms *cmd, void *cfg, const char *arg)
+const char *auth_jwt_set_key(cmd_parms *cmd, void *cfg, const char *arg)
 {
-    example_config *config = (example_config*)cfg;
+    auth_jwt_config *config = (auth_jwt_config*)cfg;
     config->key = arg;
     config->key_length = strlen(arg);
     config->key_is_set = true;
     return NULL;
 }
 
-const char *example_set_cookie_name(cmd_parms *cmd, void *cfg, const char *arg)
+const char *auth_jwt_set_cookie_name(cmd_parms *cmd, void *cfg, const char *arg)
 {
-    example_config *config = (example_config*)cfg;
+    auth_jwt_config *config = (auth_jwt_config*)cfg;
     config->cookie_name = arg; 
     config->cookie_name_is_set = true;
     return NULL;
 }
 
-const char *example_set_claim_name(cmd_parms *cmd, void *cfg, const char *arg)
+const char *auth_jwt_set_claim_name(cmd_parms *cmd, void *cfg, const char *arg)
 {
-    example_config *config = (example_config*)cfg;
+    auth_jwt_config *config = (auth_jwt_config*)cfg;
     config->claim_name = arg;
     config->claim_name_is_set = true;
     return NULL;
 }
 
-static int example_verify_jwt(const char *jwt, example_config *config) 
+static int auth_jwt_verify_jwt(const char *jwt, auth_jwt_config *config) 
 {
     int rc = 0;
 
@@ -125,16 +125,16 @@ OUT:
 /* The handler function for our module.
  * This is where all the fun happens!
  */
-static int example_handler(request_rec *r)
+static int auth_jwt_handler(request_rec *r)
 {
 
-    /* First off, we need to check if this is a call for the "example" handler.
+    /* First off, we need to check if this is a call for the "auth_jwt" handler.
      * If it is, we accept it and do our things, it not, we simply return DECLINED,
      * and Apache will try somewhere else.
      */
     if (!r->handler || strcmp(r->handler, "example-handler")) return (DECLINED);
 
-    example_config *config = (example_config*) ap_get_module_config(r->per_dir_config, &example_module);
+    auth_jwt_config *config = (auth_jwt_config*) ap_get_module_config(r->per_dir_config, &auth_jwt_module);
     if (!config) {
       goto OUT;
     }
@@ -154,7 +154,7 @@ static int example_handler(request_rec *r)
         goto OUT;
     }
 
-    if (example_verify_jwt(jwt_text, config)) {
+    if (auth_jwt_verify_jwt(jwt_text, config)) {
         ap_rprintf(r, "Not Authenticated");
     } else {
         ap_rprintf(r, "Is Authenticated");
@@ -183,6 +183,6 @@ OUT:
 static void register_hooks(apr_pool_t *pool) 
 {
     /* Hook the request handler */
-    ap_hook_handler(example_handler, NULL, NULL, APR_HOOK_LAST);
+    ap_hook_handler(auth_jwt_handler, NULL, NULL, APR_HOOK_LAST);
 }
 
