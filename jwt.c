@@ -1,8 +1,32 @@
+#include <strings.h>
+
 #include <apr_pools.h>
 #include <apr_strings.h>
 #include <apr_base64.h>
 
 #include "jwt.h"
+#include "hmac_sha2.h"
+
+#define HS256_HMAC_LEN 32
+
+static int
+memcmp_constant_time (const void *a, const void *b, size_t size)
+{
+    const uint8_t *ap = a;
+    const uint8_t *bp = b;
+    int rc = 0;
+    size_t i;
+
+    if (a == NULL || b == NULL) {
+      return -1;
+    }
+
+    for (i = 0; i < size; i++) {
+      rc |= *ap++ ^ *bp++;
+    }
+
+    return rc;
+}
 
 const char *jwt_base64_decode(const char *encoded, apr_pool_t *pool)
 {
@@ -14,6 +38,27 @@ const char *jwt_base64_decode(const char *encoded, apr_pool_t *pool)
     int decoded_len = apr_base64_decode(decoded, encoded);
     decoded[decoded_len] = 0x00;
     return decoded;
+}
+
+int jwt_verify_signature(const char *jwt_text, const char *key, size_t key_length)
+{
+  const char *last_dot = strrchr(jwt_text, '.');
+  if (!last_dot) {
+    return 1;
+  }
+  size_t singing_input_len = (size_t)(last_dot - jwt_text);
+  const char *jwt_signature = (const char*)(last_dot + 1);
+
+  unsigned char digest[HS256_HMAC_LEN];
+  hmac_sha256(key, key_length,
+              jwt_text, singing_input_len,
+              digest, HS256_HMAC_LEN);
+
+  if (memcmp_constant_time(digest, jwt_signature, HS256_HMAC_LEN)) {
+    return 1;
+  }
+
+  return 0;
 }
 
 jwt_parts_t *jwt_split(const char *jwt_text, apr_pool_t *pool)

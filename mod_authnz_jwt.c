@@ -6,7 +6,7 @@
 #include "http_request.h"
 
 #include <apr_json.h>
-#include <libjosec.h>
+
 #include "cookies.h"
 #include "jwt.h"
 
@@ -95,34 +95,6 @@ const char *auth_jwt_set_claim_name(cmd_parms *cmd, void *cfg, const char *arg)
     return NULL;
 }
 
-static int auth_jwt_verify_jwt(const char *jwt, auth_jwt_config *config) 
-{
-    int rc = 0;
-
-    jose_context_t ctx;
-    if (jose_create_context(&ctx, NULL, NULL, NULL)) {
-        rc = 1;
-        goto OUT;
-    }
-
-    jose_key_t key;
-    key.alg_type = HS256;
-    key.key = strdup(config->key);
-    key.k_len = config->key_length;
-
-    if (jose_add_key(&ctx, key)) {
-        rc = 1;
-        goto CLOSE_CONTEXT;
-    }
-
-    rc = jwt_verify_sig(&ctx, jwt, HS256);
-
-CLOSE_CONTEXT:
-    jose_close_context(&ctx);
-OUT:
-    return rc;
-}
-
 static int auth_jwt_get_user(char **user, jwt_parts_t *parts, auth_jwt_config *config, apr_pool_t *pool)
 {
     const char *claims_json_text = jwt_base64_decode(parts->claims, pool);
@@ -183,7 +155,7 @@ static int auth_jwt_handler(request_rec *r)
       return HTTP_UNAUTHORIZED;
     }
 
-    if (auth_jwt_verify_jwt(jwt_text, config)) {
+    if (jwt_verify_signature(jwt_text, config->key, config->key_length)) {
       return HTTP_UNAUTHORIZED;
     }
 

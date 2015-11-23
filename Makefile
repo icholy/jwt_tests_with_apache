@@ -1,8 +1,12 @@
 
+CFLAGS = -I/usr/local/include -I/home/icholy/Code/src/github.com/moriyoshi/apr-json/include 
+LDFLAGS = -laprjson
+SRC = mod_authnz_jwt.c sha2.c hmac_sha2.c jwt.c cookies.c
+
 all: build install
 
 build:
-	apxs -I/usr/local/include -I/usr/local/include/josec-0.11 -I/home/icholy/Code/src/github.com/moriyoshi/apr-json/include -c mod_authnz_jwt.c jwt.c cookies.c -ljansson -ljosec -laprjson
+	apxs $(CFLAGS) -c $(SRC) $(LDFLAGS)
 
 install:
 	sudo apxs -i -a mod_authnz_jwt.la
