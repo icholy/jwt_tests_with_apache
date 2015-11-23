@@ -8,6 +8,7 @@
 #include <jansson.h>
 #include <libjosec.h>
 #include "cookies.h"
+#include "jwt.h"
 
 #define bool int
 #define true 1
@@ -23,6 +24,7 @@ typedef struct {
     bool   cookie_name_is_set;
     bool   key_is_set;
     size_t key_length;
+    
 } example_config;
 
 const char *example_set_key(cmd_parms *cmd, void *cfg, const char *arg);
@@ -121,14 +123,6 @@ OUT:
     return rc;
 }
 
-static int example_show_cookies(void *rec, const char *key, const char *value) {
-  request_rec *r = (request_rec*)rec;
-  ap_rprintf(r, "Key: %s, Value: %s, ", key, value);
-
-  // zero stops iterating
-  return 1;
-}
-
 /* The handler function for our module.
  * This is where all the fun happens!
  */
@@ -161,17 +155,19 @@ static int example_handler(request_rec *r)
         goto OUT;
     }
 
-    // Get the JWT from the cookie
-    /* const char *jwt = cookies_lookup(cookies, config.cookie_name, r->pool); */
-    /* if (!jwt) { */
-    /*     goto OUT; */
-    /* } */
-
     if (example_verify_jwt(jwt_text, config)) {
         ap_rprintf(r, "Not Authenticated");
     } else {
         ap_rprintf(r, "Is Authenticated");
     }
+
+    jwt_parts_t *jwt_parts = jwt_split(jwt_text, r->pool);
+    if (!jwt_parts) {
+       goto OUT;
+    }
+
+    ap_rprintf(r, "HEADER: %s; CLAIMS %s; SIGNATURE: %s;",
+          jwt_parts->header, jwt_parts->claims, jwt_parts->signature);
 
     json_t *head, *claims, *name;
 
