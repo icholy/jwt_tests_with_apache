@@ -5,7 +5,6 @@
 #include "http_protocol.h"
 #include "http_request.h"
 
-#include <jansson.h>
 #include <libjosec.h>
 #include "cookies.h"
 #include "jwt.h"
@@ -168,23 +167,6 @@ static int example_handler(request_rec *r)
 
     ap_rprintf(r, "HEADER: %s; CLAIMS %s; SIGNATURE: %s;",
           jwt_parts->header, jwt_parts->claims, jwt_parts->signature);
-
-    json_t *head, *claims, *name;
-
-    /* if (jwt_split(jwt, &head, &claims)) { */
-    /*     goto OUT; */
-    /* } */
-    /*  */
-    /* if (!json_is_object(claims)) { */
-    /*     goto FREE_JSON; */
-    /* } */
-    /*  */
-    /* name = json_object_get(claims, config.claim_name); */
-    /* if (!json_is_string(name)) { */
-    /*     goto FREE_JSON; */
-    /* } */
-    /*  */
-    /* ap_rprintf(r, "%s is Authenticated", json_string_value(name)); */
 
 FREE_JSON:
 
