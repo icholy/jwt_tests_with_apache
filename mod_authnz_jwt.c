@@ -5,6 +5,7 @@
 #include "http_protocol.h"
 #include "http_request.h"
 
+#include <apr_json.h>
 #include <libjosec.h>
 #include "cookies.h"
 #include "jwt.h"
