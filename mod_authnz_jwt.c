@@ -142,8 +142,6 @@ static int auth_jwt_handler(request_rec *r)
     // set the content type
     ap_set_content_type(r, "application/json");
 
-    // const char* foo = apr_pstrdup(r->pool, "this is a test");
-
     const char *cookies_text = apr_table_get(r->headers_in, "cookie");
     if (!cookies_text) {
         goto OUT;
@@ -165,7 +163,7 @@ static int auth_jwt_handler(request_rec *r)
        goto OUT;
     }
 
-    ap_rprintf(r, "HEADER: %s; CLAIMS %s; SIGNATURE: %s;",
+    ap_rprintf(r, "HEADER: %s; CLAIMS: %s; SIGNATURE: %s;",
           jwt_parts->header, jwt_parts->claims, jwt_parts->signature);
 
 OUT:
