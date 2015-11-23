@@ -36,9 +36,9 @@ static void *create_dir_conf(apr_pool_t *pool, char *context);
 
 static const command_rec auth_jwt_directives[] = 
 {
-    AP_INIT_TAKE1("exampleKey", auth_jwt_set_key, NULL, ACCESS_CONF, "Set the HS256 key"),
-    AP_INIT_TAKE1("exampleCookieName", auth_jwt_set_cookie_name, NULL, ACCESS_CONF, "Cookie name"),
-    AP_INIT_TAKE1("exampleClaimName", auth_jwt_set_claim_name, NULL, ACCESS_CONF, "Claim name"),
+    AP_INIT_TAKE1("AuthJWTKey", auth_jwt_set_key, NULL, ACCESS_CONF, "Set the HS256 key"),
+    AP_INIT_TAKE1("AuthJWTCookieName", auth_jwt_set_cookie_name, NULL, ACCESS_CONF, "Cookie name"),
+    AP_INIT_TAKE1("AuthJWTClaimName", auth_jwt_set_claim_name, NULL, ACCESS_CONF, "Claim name"),
     { NULL }
 };
 
@@ -128,15 +128,15 @@ OUT:
 static int auth_jwt_handler(request_rec *r)
 {
 
-    /* First off, we need to check if this is a call for the "auth_jwt" handler.
-     * If it is, we accept it and do our things, it not, we simply return DECLINED,
-     * and Apache will try somewhere else.
-     */
-    if (!r->handler || strcmp(r->handler, "example-handler")) return (DECLINED);
+
+    const char *current_auth = ap_auth_type(r);
+    if (!current_auth || strcasecmp(current_auth, "JWT")) {
+      return DECLINED;
+    }
 
     auth_jwt_config *config = (auth_jwt_config*) ap_get_module_config(r->per_dir_config, &auth_jwt_module);
     if (!config) {
-      goto OUT;
+      return HTTP_INTERNAL_SERVER_ERROR;
     }
 
     // set the content type
@@ -144,29 +144,24 @@ static int auth_jwt_handler(request_rec *r)
 
     const char *cookies_text = apr_table_get(r->headers_in, "cookie");
     if (!cookies_text) {
-        goto OUT;
+      return HTTP_UNAUTHORIZED;
     }
 
     const char *jwt_text = cookies_lookup(cookies_text, config->cookie_name, r->pool);
     if (!jwt_text) {
-        goto OUT;
+      return HTTP_UNAUTHORIZED;
     }
 
     if (auth_jwt_verify_jwt(jwt_text, config)) {
-        ap_rprintf(r, "Not Authenticated");
-    } else {
-        ap_rprintf(r, "Is Authenticated");
+      return HTTP_UNAUTHORIZED;
     }
 
     jwt_parts_t *jwt_parts = jwt_split(jwt_text, r->pool);
     if (!jwt_parts) {
-       goto OUT;
+      return HTTP_BAD_REQUEST;
     }
 
-    ap_rprintf(r, "HEADER: %s; CLAIMS: %s; SIGNATURE: %s;",
-          jwt_parts->header, jwt_parts->claims, jwt_parts->signature);
-
-OUT:
+    r->user = "test";
 
     return OK;
 }
@@ -176,6 +171,7 @@ OUT:
 static void register_hooks(apr_pool_t *pool) 
 {
     /* Hook the request handler */
-    ap_hook_handler(auth_jwt_handler, NULL, NULL, APR_HOOK_LAST);
+    ap_hook_check_authn(auth_jwt_handler, NULL, NULL, APR_HOOK_LAST,
+                        AP_AUTH_INTERNAL_PER_CONF);
 }
 
