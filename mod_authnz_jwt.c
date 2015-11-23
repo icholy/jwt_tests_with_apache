@@ -168,11 +168,6 @@ static int auth_jwt_handler(request_rec *r)
     ap_rprintf(r, "HEADER: %s; CLAIMS %s; SIGNATURE: %s;",
           jwt_parts->header, jwt_parts->claims, jwt_parts->signature);
 
-FREE_JSON:
-
-    /* json_decref(head); */
-    /* json_decref(claims); */
-
 OUT:
 
     return OK;
