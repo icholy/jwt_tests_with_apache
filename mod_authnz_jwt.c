@@ -122,9 +122,9 @@ OUT:
     return rc;
 }
 
-static int auth_jwt_get_user(char **user, jwt_parts_t *jwt_parts, auth_jwt_config *config, apr_pool_t *pool)
+static int auth_jwt_get_user(char **user, jwt_parts_t *parts, auth_jwt_config *config, apr_pool_t *pool)
 {
-    const char *claims_json_text = jwt_base64_decode(jwt_parts->claims, pool);
+    const char *claims_json_text = jwt_base64_decode(parts->claims, pool);
     if (!claims_json_text) {
       return HTTP_BAD_REQUEST;
     }
@@ -145,7 +145,6 @@ static int auth_jwt_get_user(char **user, jwt_parts_t *jwt_parts, auth_jwt_confi
     if (name_value->type != APR_JSON_STRING) {
       return HTTP_BAD_REQUEST;
     }
-
     apr_json_string_t name_string = name_value->value.string;
     *user = apr_pstrndup(pool, name_string.p, name_string.len);
     if (!*user) {
