@@ -1,5 +1,5 @@
-mod_authnz_jwt.la
-mod_authnz_jwt.lo
-mod_authnz_jwt.slo
-.libs/
+*.la
+*.lo
+*.slo
 *.o
+.libs/
