@@ -40,8 +40,9 @@ const char *jwt_base64_decode(const char *encoded, apr_pool_t *pool)
     return decoded;
 }
 
-int jwt_verify_signature(const char *jwt_text, const char *key, size_t key_length)
+int jwt_verify_signature(const jwt_t *jwt, const char *key, size_t key_length)
 {
+  const char *jwt_text = jwt->raw;
   const char *last_dot = strrchr(jwt_text, '.');
   if (!last_dot) {
     return 1;
@@ -93,7 +94,7 @@ jwt_t *jwt_parse(const char *jwt_text, apr_pool_t *pool)
     second_dot[0] = 0x00;
 
     jwt_t *jwt = apr_palloc(pool, sizeof(jwt_t));
-    if (!parts) {
+    if (!jwt) {
         return NULL;
     }
 

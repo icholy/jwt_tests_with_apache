@@ -152,13 +152,13 @@ static int auth_jwt_handler(request_rec *r)
       return HTTP_UNAUTHORIZED;
     }
 
-    if (jwt_verify_signature(jwt_text, config->key, config->key_length)) {
-      return HTTP_UNAUTHORIZED;
-    }
-
     jwt_t *jwt = jwt_parse(jwt_text, r->pool);
     if (!jwt) {
       return HTTP_BAD_REQUEST;
+    }
+
+    if (jwt_verify_signature(jwt, config->key, config->key_length)) {
+      return HTTP_UNAUTHORIZED;
     }
 
     int ret = auth_jwt_get_user(&r->user, jwt, config, r->pool);
