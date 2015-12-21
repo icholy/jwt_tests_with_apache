@@ -37,9 +37,9 @@ static void *create_dir_conf(apr_pool_t *pool, char *context);
 
 static const command_rec auth_jwt_directives[] = 
 {
-    AP_INIT_TAKE1("AuthJWTKey", auth_jwt_set_key, NULL, ACCESS_CONF, "Set the HS256 key"),
+    AP_INIT_TAKE1("AuthJWTKey",        auth_jwt_set_key,         NULL, ACCESS_CONF, "Set the HS256 key"),
     AP_INIT_TAKE1("AuthJWTCookieName", auth_jwt_set_cookie_name, NULL, ACCESS_CONF, "Cookie name"),
-    AP_INIT_TAKE1("AuthJWTClaimName", auth_jwt_set_claim_name, NULL, ACCESS_CONF, "Claim name"),
+    AP_INIT_TAKE1("AuthJWTClaimName",  auth_jwt_set_claim_name,  NULL, ACCESS_CONF, "Claim name"),
     { NULL }
 };
 
