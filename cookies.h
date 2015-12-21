@@ -1,4 +1,5 @@
 #include <apr_tables.h>
+#include <apr_strings.h>
 
 const char *cookies_lookup(const char* text, const char *key, apr_pool_t *pool);
 

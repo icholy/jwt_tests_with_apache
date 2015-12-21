@@ -2,6 +2,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include <apr_strings.h>
 #include <apr_tables.h>
@@ -30,24 +31,24 @@ static const char *cookies_pair_value(cookies_pair_t pair, apr_pool_t *pool) {
   return apr_pstrndup(pool, pair.value, pair.value_length);
 }
 
-static void cookies_pair_trim_whitespace(cookies_pair_t pair) {
-    while (isspace(*pair.key)) {
-        pair.key++;
-        pair.key_length--;
+static void cookies_pair_trim_whitespace(cookies_pair_t *pair) {
+    while (isspace(*pair->key)) {
+        pair->key++;
+        pair->key_length--;
     }
-    while (isspace(pair.key[pair.key_length - 1])) {
-        pair.key_length--;
+    while (isspace(pair->key[pair->key_length - 1])) {
+        pair->key_length--;
     }
-    while (isspace(*pair.value)) {
-        pair.value++;
-        pair.value_length--;
+    while (isspace(*pair->value)) {
+        pair->value++;
+        pair->value_length--;
     }
-    while (isspace(pair.value[pair.value_length - 1])) {
-        pair.value_length--;
+    while (isspace(pair->value[pair->value_length - 1])) {
+        pair->value_length--;
     }
 }
 
-int cookies_parse(const char* text, cookie_handler_t handler, void *userdata, apr_pool_t *pool) {
+static int cookies_parse(const char* text, cookie_handler_t handler, void *userdata, apr_pool_t *pool) {
 
     const char *text_pos = text;
     const char *text_end = text + strlen(text);
@@ -76,7 +77,7 @@ int cookies_parse(const char* text, cookie_handler_t handler, void *userdata, ap
         pair.value_length = (size_t)(value_end - pair.value);
 
         // trim whitespace
-        cookies_pair_trim_whitespace(pair);
+        cookies_pair_trim_whitespace(&pair);
 
         // invoke callback
         int res = handler(pair, userdata, pool);
@@ -123,3 +124,48 @@ static int cookies_handle_load(cookies_pair_t pair, void *data, apr_pool_t *pool
 int cookies_load(const char *text, apr_table_t *table, apr_pool_t *pool) {
     return cookies_parse(text, cookies_handle_load, table, pool);
 }
+
+#ifdef COOKIES_TEST
+
+#define fail(format, ...) { \
+  printf(format, ##__VA_ARGS__); \
+  assert(0); \
+}
+
+void assert_key_equals(
+    const char *text,
+    const char *key,
+    const char *expected,
+    apr_pool_t *pool
+) {
+
+  const char *actual = cookies_lookup(text, key, pool);
+  if (actual == NULL) {
+    fail("failed to lookup \"%s\"\n", key);
+  }
+
+  if (strcmp(expected, actual) != 0) {
+    fail("expected \"%s\" to be \"%s\", got \"%s\"\n", key, expected, actual);
+  }
+}
+
+int main(void) {
+
+  if (apr_initialize() != APR_SUCCESS) {
+    fail("Failed to initialize apr");
+  }
+
+  apr_pool_t *pool;
+
+  if (apr_pool_create(&pool, NULL) != APR_SUCCESS) {
+    fail("Failed to allocate pool");
+  }
+
+  assert_key_equals("foo=bar", "foo", "bar", pool);
+  assert_key_equals("bing=pool;what=cat", "what", "cat", pool);
+  assert_key_equals("  foo = blap ; ting = bop ;", "ting", "bop", pool);
+  assert_key_equals("  a = 1; b = 123", "b", "123", pool);
+
+}
+#endif
+
