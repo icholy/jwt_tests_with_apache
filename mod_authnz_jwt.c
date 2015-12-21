@@ -95,9 +95,9 @@ const char *auth_jwt_set_claim_name(cmd_parms *cmd, void *cfg, const char *arg)
     return NULL;
 }
 
-static int auth_jwt_get_user(char **user, jwt_parts_t *parts, auth_jwt_config *config, apr_pool_t *pool)
+static int auth_jwt_get_user(char **user, jwt_t *jwt, auth_jwt_config *config, apr_pool_t *pool)
 {
-    const char *claims_json_text = jwt_base64_decode(parts->claims, pool);
+    const char *claims_json_text = jwt_base64_decode(jwt->claims, pool);
     if (!claims_json_text) {
       return HTTP_BAD_REQUEST;
     }
@@ -142,9 +142,6 @@ static int auth_jwt_handler(request_rec *r)
       return HTTP_INTERNAL_SERVER_ERROR;
     }
 
-    // set the content type
-    ap_set_content_type(r, "application/json");
-
     const char *cookies_text = apr_table_get(r->headers_in, "cookie");
     if (!cookies_text) {
       return HTTP_UNAUTHORIZED;
@@ -159,12 +156,12 @@ static int auth_jwt_handler(request_rec *r)
       return HTTP_UNAUTHORIZED;
     }
 
-    jwt_parts_t *jwt_parts = jwt_split(jwt_text, r->pool);
-    if (!jwt_parts) {
+    jwt_t *jwt = jwt_parse(jwt_text, r->pool);
+    if (!jwt) {
       return HTTP_BAD_REQUEST;
     }
 
-    int ret = auth_jwt_get_user(&r->user, jwt_parts, config, r->pool);
+    int ret = auth_jwt_get_user(&r->user, jwt, config, r->pool);
     if (ret) {
       return ret;
     }
@@ -173,10 +170,10 @@ static int auth_jwt_handler(request_rec *r)
 }
 
 
-/* register_hooks: Adds a hook to the httpd process */
+// register_hooks: Adds a hook to the httpd process
 static void register_hooks(apr_pool_t *pool) 
 {
-    /* Hook the request handler */
+    // Hook the request handler
     ap_hook_check_authn(auth_jwt_handler, NULL, NULL, APR_HOOK_LAST,
                         AP_AUTH_INTERNAL_PER_CONF);
 }

@@ -61,7 +61,7 @@ int jwt_verify_signature(const char *jwt_text, const char *key, size_t key_lengt
   return 0;
 }
 
-jwt_parts_t *jwt_split(const char *jwt_text, apr_pool_t *pool)
+jwt_t *jwt_parse(const char *jwt_text, apr_pool_t *pool)
 {
     char *text = apr_pstrdup(pool, jwt_text);
     if (!text) {
@@ -92,15 +92,16 @@ jwt_parts_t *jwt_split(const char *jwt_text, apr_pool_t *pool)
     first_dot[0] = 0x00;
     second_dot[0] = 0x00;
 
-    jwt_parts_t *parts = apr_palloc(pool, sizeof(jwt_parts_t));
+    jwt_t *jwt = apr_palloc(pool, sizeof(jwt_t));
     if (!parts) {
         return NULL;
     }
 
-    parts->header = text;
-    parts->claims = (char*)(first_dot + 1);
-    parts->signature = (char*)(second_dot + 1);
+    jwt->raw = jwt_text;
+    jwt->header = text;
+    jwt->claims = (char*)(first_dot + 1);
+    jwt->signature = (char*)(second_dot + 1);
 
-    return parts;
+    return jwt;
 }
 
